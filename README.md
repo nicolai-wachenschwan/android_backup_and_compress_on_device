@@ -2,11 +2,11 @@
 
 A desktop application to back up photos and videos from an Android device, compress them to save space, and replace the originals on the device.
 
-> My wife ran out of space on her Phone. Either buy a new phone or get rid of the memorys in the pocket, or Pay monthly for cloud. All not great. I noticed 1 Minute Video took >300MB, which seemed wasteful. I knew that compression could solve that problem, but I Found no convinient software so I * wrote it: 1 Click to start backup in Full quality, compression and replacing on device while keeping the Metadata for correct sorting in the gallery.
-> However the setup takes some patience.
->
-> \*= Actually 95% was written by Gemini 2.5/GPT5. I just added nuances.
-> PS: The code is Not perfect, but good enough and since we handle sensitive data: every change is Test intensive. “
+My wife ran out of space on her Phone. Either buy a new phone or get rid of the memorys in the pocket, or Pay monthly for cloud. All not great. I noticed 1 Minute Video took >300MB, which seemed wasteful. I knew that compression could solve that problem, but I Found no convinient software so I * wrote it: 1 Click to start backup in Full quality, compression and replacing on device while keeping the Metadata for correct sorting in the gallery.
+However the setup takes some patience.
+
+\*= Actually 95% was written by Gemini 2.5/GPT5. I just added nuances.
+PS: The code is Not perfect, but good enough and since we handle sensitive data: every change is Test intensive. “
 
 
 ## Features
@@ -42,8 +42,6 @@ This application requires Python 3, FFmpeg, ExifTool, and Android Debug Bridge (
 
 FFmpeg is a powerful command-line tool for handling video and audio.
 
-**Windows:**
-
 1.  Download the latest "full" build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z).
 2.  Extract the `.7z` file (you might need [7-Zip](https://www.7-zip.org/)).
 3.  Move the extracted folder to a permanent location, like `C:\ffmpeg`.
@@ -53,40 +51,7 @@ FFmpeg is a powerful command-line tool for handling video and audio.
     *   Under "System variables," find and select the "Path" variable, then click "Edit."
     *   Click "New" and add the path to the `bin` directory (e.g., `C:\ffmpeg\bin`).
 
-**macOS (using Homebrew):**
 
-```bash
-brew install ffmpeg
-```
-
-**Linux (using apt):**
-
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
-
-### 3. Install ExifTool
-
-ExifTool is used to read and write metadata in media files.
-
-**Windows:**
-
-1.  Download the "Windows Executable" from the [ExifTool website](https://exiftool.org/).
-2.  Rename the downloaded file `exiftool(-k).exe` to `exiftool.exe`.
-3.  Move `exiftool.exe` to a directory that is in your system's PATH, such as `C:\Windows`.
-
-**macOS (using Homebrew):**
-
-```bash
-brew install exiftool
-```
-
-**Linux (using apt):**
-
-```bash
-sudo apt install libimage-exiftool-perl
-```
 
 ### 4. Install Android Debug Bridge (ADB)
 
@@ -109,16 +74,7 @@ ADB is a command-line tool for communicating with an Android device.
     *   **macOS/Linux:** Extract the zip file to a location you can easily remember, like `~/Library/Android/sdk/platform-tools` (macOS) or `~/platform-tools` (Linux).
 3.  **Add ADB to your PATH:**
     *   **Windows:** Follow the same steps as for FFmpeg to add the `platform-tools` directory (e.g., `C:\platform-tools`) to your PATH.
-    *   **macOS (Zsh shell, the default):**
-        ```bash
-        echo 'export PATH=$PATH:~/Library/Android/sdk/platform-tools/' >> ~/.zshrc
-        source ~/.zshrc
-        ```
-    *   **Linux (or macOS with Bash shell):**
-        ```bash
-        echo 'export PATH=$PATH:~/platform-tools/' >> ~/.bashrc
-        source ~/.bashrc
-        ```
+
 
 ## Usage
 
