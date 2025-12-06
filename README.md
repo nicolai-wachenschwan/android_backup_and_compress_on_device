@@ -1,6 +1,6 @@
 
 # Android Backup & Compress Tool
-<img width="1024" height="1024" alt="IMG_2680" src="https://github.com/user-attachments/assets/28976eeb-afac-4ec8-a2da-59113abd9b28" />
+<img width="512" height="512" alt="IMG_2680" src="https://github.com/user-attachments/assets/28976eeb-afac-4ec8-a2da-59113abd9b28" />
 
 A desktop application to back up photos and videos from an Android device, compress them to save space, and replace the originals on the device.
 
