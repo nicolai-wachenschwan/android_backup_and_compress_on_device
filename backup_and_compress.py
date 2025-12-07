@@ -35,6 +35,7 @@ if sys.platform == "win32":
 class AndroidBackupApp:
     def __init__(self, root):
         self.root = root
+        self.device_serial = None # NEU: Für die Geräte-ID (USB oder IP)
         self.root.title("Android Backup & Replace Tool V2.3 (Updated)") # Version erhöht
         self.root.geometry("950x980") # Höhe angepasst für neue Sektion
         self.setup_file_logging()
@@ -52,20 +53,41 @@ class AndroidBackupApp:
         # --- STEP 1: BACKUP SECTION ---
         backup_frame = ttk.LabelFrame(main_frame, text="1. Android Backup", padding=(10, 5))
         backup_frame.pack(fill=tk.X, pady=5)
-        tk.Label(backup_frame, text="Android Pfad:").grid(row=0, column=0, sticky="w", pady=2)
+
+        # --- NEU: Verbindungstyp ---
+        tk.Label(backup_frame, text="Verbindung:").grid(row=0, column=0, sticky="w", pady=2)
+        self.connection_type_var = tk.StringVar(value="USB")
+        connection_frame = ttk.Frame(backup_frame)
+        connection_frame.grid(row=0, column=1, columnspan=2, sticky="ew")
+        ttk.Radiobutton(connection_frame, text="USB", variable=self.connection_type_var, value="USB", command=self.toggle_wifi_widgets).pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(connection_frame, text="Wi-Fi", variable=self.connection_type_var, value="Wi-Fi", command=self.toggle_wifi_widgets).pack(side=tk.LEFT, padx=5)
+
+        # --- NEU: Wi-Fi Widgets ---
+        self.wifi_ip_label = tk.Label(connection_frame, text="IP/Hostname:")
+        self.wifi_ip_label.pack(side=tk.LEFT, padx=(20, 5))
+        self.wifi_ip_entry = tk.Entry(connection_frame)
+        self.wifi_ip_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.wifi_connect_button = tk.Button(connection_frame, text="Verbinden", command=self.connect_wifi_device)
+        self.wifi_connect_button.pack(side=tk.LEFT, padx=5)
+
+        # --- Bestehende Widgets um eine Zeile nach unten verschoben ---
+        tk.Label(backup_frame, text="Android Pfad:").grid(row=1, column=0, sticky="w", pady=2)
         self.android_path_entry = tk.Entry(backup_frame)
         self.android_path_entry.insert(0, "/sdcard/DCIM/Camera")
-        self.android_path_entry.grid(row=0, column=1, sticky="ew", padx=5)
-        tk.Button(backup_frame, text="Test Connection", command=self.test_adb_connection).grid(row=0, column=2)
-        tk.Label(backup_frame, text="Backup nach:").grid(row=1, column=0, sticky="w", pady=2)
+        self.android_path_entry.grid(row=1, column=1, sticky="ew", padx=5)
+        tk.Button(backup_frame, text="Test Connection", command=self.test_adb_connection).grid(row=1, column=2)
+
+        tk.Label(backup_frame, text="Backup nach:").grid(row=2, column=0, sticky="w", pady=2)
         self.backup_dir_entry = tk.Entry(backup_frame)
-        self.backup_dir_entry.grid(row=1, column=1, sticky="ew", padx=5)
-        tk.Button(backup_frame, text="...", command=self.select_backup_dir).grid(row=1, column=2)
-        tk.Label(backup_frame, text="Dateiname-Filter (Regex):").grid(row=2, column=0, sticky="w", pady=2)
+        self.backup_dir_entry.grid(row=2, column=1, sticky="ew", padx=5)
+        tk.Button(backup_frame, text="...", command=self.select_backup_dir).grid(row=2, column=2)
+
+        tk.Label(backup_frame, text="Dateiname-Filter (Regex):").grid(row=3, column=0, sticky="w", pady=2)
         self.regex_filter_var = tk.StringVar()
         self.regex_filter_entry = tk.Entry(backup_frame, textvariable=self.regex_filter_var)
         self.regex_filter_entry.insert(0, ".*2025.*") 
-        self.regex_filter_entry.grid(row=2, column=1, sticky="ew", padx=5)
+        self.regex_filter_entry.grid(row=3, column=1, sticky="ew", padx=5)
+
         backup_frame.columnconfigure(1, weight=1)
 
         # --- STEP 2: COMPRESSION SECTION ---
@@ -177,6 +199,7 @@ class AndroidBackupApp:
 
         self.toggle_ui_states()
         self.update_crf_label()
+        self.toggle_wifi_widgets() # NEU: Initiales Ausblenden der Wi-Fi Widgets
 
     def setup_file_logging(self):
         log_dir = os.path.dirname(os.path.abspath(__file__))
@@ -213,6 +236,17 @@ class AndroidBackupApp:
         self.replace_check.configure(state=replace_state)
         if not self.enable_compression_var.get(): self.enable_replace_var.set(False)
 
+    def toggle_wifi_widgets(self):
+        """Zeigt oder verbirgt die Wi-Fi-spezifischen Eingabefelder."""
+        if self.connection_type_var.get() == "Wi-Fi":
+            self.wifi_ip_label.pack(side=tk.LEFT, padx=(20, 5))
+            self.wifi_ip_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            self.wifi_connect_button.pack(side=tk.LEFT, padx=5)
+        else:
+            self.wifi_ip_label.pack_forget()
+            self.wifi_ip_entry.pack_forget()
+            self.wifi_connect_button.pack_forget()
+
     def update_crf_label(self, event=None):
         value = self.crf_value.get()
         desc = "(Hohe Qualität)" if value <= 22 else "(Ausgewogen)" if value <= 28 else "(Hohe Komprimierung)"
@@ -233,22 +267,55 @@ class AndroidBackupApp:
     def check_adb(self):
         return self.run_command_with_retries(['adb', 'version'], timeout=5, retries=1) is not None
 
+    def connect_wifi_device(self):
+        """Versucht, eine Verbindung zu einem Gerät über Wi-Fi herzustellen."""
+        ip = self.wifi_ip_entry.get().strip()
+        if not ip:
+            messagebox.showerror("Fehler", "Bitte geben Sie eine IP-Adresse oder einen Hostnamen ein.")
+            return
+
+        # Standard-Port 5555 hinzufügen, falls nicht vorhanden
+        if ':' not in ip:
+            ip_with_port = f"{ip}:5555"
+        else:
+            ip_with_port = ip
+
+        self.log_to_gui(f"Versuche, mit {ip_with_port} zu verbinden...")
+        #result = self.run_command_with_retries(['adb', 'pair', ip_with_port], retries=1)
+        result = self.run_command_with_retries(['adb', 'connect', ip_with_port], retries=1)
+
+        if result and ("connected to" in result.stdout or "already connected" in result.stdout):
+            self.device_serial = ip_with_port
+            self.log_to_gui(f"Erfolgreich mit {self.device_serial} verbunden.")
+            messagebox.showinfo("Erfolg", f"Verbunden mit {self.device_serial}")
+        else:
+            self.device_serial = None
+            error_msg = result.stderr if result else "Unbekannter Fehler"
+            self.log_to_gui(f"Verbindung zu {ip_with_port} fehlgeschlagen: {error_msg}", "ERROR")
+            messagebox.showerror("Verbindungsfehler", f"Konnte keine Verbindung zu {ip_with_port} herstellen.\n\nStellen Sie sicher, dass ADB-Debugging über Wi-Fi auf dem Gerät aktiviert ist, \n\ndas pairing durchgeführt wurde und der angezeigte Port verwendet wird. \n\nzudem darf das Handy nicht gesperrt sein.")
+
     def test_adb_connection(self):
         try:
             self.check_adb()
         except Exception as e:
             messagebox.showerror(f"ADB Fehler: {e}", "ADB nicht gefunden oder nicht im Systempfad (PATH)!")
             return
-        print("ADB found.")
-        result = self.run_command_with_retries(['adb', 'devices'], retries=1)
+
+        self.log_to_gui("Teste ADB-Verbindung...")
+        result = self.run_command_with_retries(['adb', 'devices'])
         if result is None:
             messagebox.showerror("ADB Fehler", "Der Befehl 'adb devices' konnte nicht ausgeführt werden.")
             return
+
         lines = result.stdout.strip().split('\n')[1:]
         devices = [line.split()[0] for line in lines if line.strip() and 'unauthorized' not in line]
+
         if not devices:
+            self.device_serial = None
             messagebox.showwarning("Kein Gerät", "Kein autorisiertes Android-Gerät gefunden!")
         else:
+            # Bei mehreren Geräten muss der Benutzer eines auswählen (hier wird das erste genommen)
+            self.device_serial = devices[0]
             messagebox.showinfo("Erfolg", f"Gerät verbunden: {devices[0]}")
 
     def start_process_thread(self):
@@ -273,6 +340,14 @@ class AndroidBackupApp:
         threading.Thread(target=self.run_full_process, daemon=True).start()
 
     def run_command_with_retries(self, command, retries=3, delay=5, timeout=120, capture_output=True):
+        # NEU: Fügt das Geräte-Flag hinzu, falls eine spezifische Verbindung besteht
+        if command[0] == 'adb' and self.device_serial:
+            # Verhindert doppeltes Hinzufügen des -s Flags
+            if '-s' not in command:
+                # Fügt '-s <serial>' nach 'adb' ein
+                command.insert(1, self.device_serial)
+                command.insert(1, '-s')
+
         for attempt in range(retries):
             try:
                 startupinfo = None
@@ -295,7 +370,7 @@ class AndroidBackupApp:
     def _get_android_file_size(self, remote_path):
         """Ermittelt die Dateigröße einer Datei auf dem Android-Gerät in Bytes."""
         # 'stat -c %s' ist zuverlässiger als 'ls -l' zum Parsen
-        res = self.run_command_with_retries(['adb', 'shell', 'stat', '-c', '%s', remote_path], retries=2, timeout=10)
+        res = self.run_command_with_retries(['adb', 'shell', 'stat', '-c', "%s", f"'{remote_path}'"], retries=2, timeout=10)
         if res and res.returncode == 0 and res.stdout.strip().isdigit():
             return int(res.stdout.strip())
         return None
@@ -311,7 +386,7 @@ class AndroidBackupApp:
         
         # Der Pfad muss für die Shell korrekt behandelt werden, falls er Leerzeichen enthält
         # In der Regel reicht es, ihn am Ende anzugeben.
-        command = ['adb', 'shell', 'touch', '-m', '-t', timestamp_str, remote_path]
+        command = ['adb', 'shell', 'touch', '-m', '-t', timestamp_str, f"'{remote_path}'"]
         
         self.log_to_gui(f"  -> Setze Datum auf Gerät: {dt_object.strftime('%Y-%m-%d %H:%M:%S')}")
         result = self.run_command_with_retries(command, retries=2)
@@ -403,7 +478,7 @@ class AndroidBackupApp:
         if not skip_other_sources:
             try:
                 if remote_filepath is not None:# Führt 'adb shell stat -c %Y <filepath>' aus, um das Änderungsdatum als Unix-Timestamp zu erhalten
-                    cmd = ['adb', 'shell', 'stat', '-c', '%Y', remote_filepath]
+                    cmd = ['adb', 'shell', 'stat', '-c', '%Y', f"'{remote_filepath}'"]
                     result = self.run_command_with_retries(cmd, retries=2)
                     if result and result.stdout.strip().isdigit():
                         timestamp = int(result.stdout.strip())
@@ -497,6 +572,19 @@ class AndroidBackupApp:
             self.log_to_gui(f"  WARNUNG: Konnte Timestamps nicht kopieren: {e}", "WARN")
 
     def run_full_process(self):
+        # NEU: Geräte-ID vor dem Start festlegen
+        self.device_serial = None
+        if self.connection_type_var.get() == "USB":
+            devices_result = self.run_command_with_retries(['adb', 'devices'])
+            if devices_result:
+                lines = devices_result.stdout.strip().split('\n')[1:]
+                devices = [line.split()[0] for line in lines if line.strip() and 'unauthorized' not in line]
+                if devices:
+                    self.device_serial = devices[0] # Nimmt das erste gefundene USB-Gerät
+                    self.log_to_gui(f"USB-Gerät ausgewählt: {self.device_serial}")
+        # Für Wi-Fi wird `device_serial` in `connect_wifi_device` gesetzt.
+        # Der Benutzer muss vor dem Start auf "Verbinden" geklickt haben.
+
         try:
             # Step 1: Backup
             self.log_to_gui("\n" + "="*80 + "\nSCHRITT 1: BACKUP VOM ANDROID GERÄT\n" + "="*80)
